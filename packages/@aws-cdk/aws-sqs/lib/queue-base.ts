@@ -56,8 +56,26 @@ export interface IQueue extends IResource {
    *   - sqs:GetQueueUrl
    *
    * @param grantee Principal to grant consume rights to
+   * @deprecated Use {@link grantConsume} instead
    */
   grantConsumeMessages(grantee: iam.IGrantable): iam.Grant;
+
+  /**
+   * Grant permissions to consume messages from a queue
+   *
+   * This will grant the following permissions:
+   *
+   *   - sqs:ChangeMessageVisibility
+   *   - sqs:ChangeMessageVisibilityBatch
+   *   - sqs:DeleteMessage
+   *   - sqs:DeleteMessageBatch
+   *   - sqs:ReceiveMessage
+   *   - sqs:GetQueueAttributes
+   *   - sqs:GetQueueUrl
+   *
+   * @param grantee Principal to grant consume rights to
+   */
+  grantConsume(grantee: iam.IGrantable): iam.Grant;
 
   /**
    * Grant access to send messages to a queue to the given identity.
@@ -69,8 +87,23 @@ export interface IQueue extends IResource {
    *  - sqs:GetQueueUrl
    *
    * @param grantee Principal to grant send rights to
+   * @deprecated Use {@link grantSend} instead
    */
   grantSendMessages(grantee: iam.IGrantable): iam.Grant;
+
+  /**
+   * Grant access to send messages to a queue to the given identity.
+   *
+   * This will grant the following permissions:
+   *
+   *  - sqs:SendMessage
+   *  - sqs:SendMessagBatch
+   *  - sqs:GetQueueAttributes
+   *  - sqs:GetQueueUrl
+   *
+   * @param grantee Principal to grant send rights to
+   */
+  grantSend(grantee: iam.IGrantable): iam.Grant;
 
   /**
    * Grant an IAM principal permissions to purge all messages from the queue.
@@ -172,6 +205,7 @@ export abstract class QueueBase extends Resource implements IQueue {
    *   - sqs:GetQueueUrl
    *
    * @param grantee Principal to grant consume rights to
+   * @deprecated use {@link grantConsume} instead
    */
   public grantConsumeMessages(grantee: iam.IGrantable) {
     const ret = this.grant(grantee,
@@ -179,6 +213,38 @@ export abstract class QueueBase extends Resource implements IQueue {
       'sqs:ChangeMessageVisibility',
       'sqs:GetQueueUrl',
       'sqs:DeleteMessage',
+      'sqs:GetQueueAttributes');
+
+    if (this.encryptionMasterKey) {
+      this.encryptionMasterKey.grantDecrypt(grantee);
+    }
+
+    return ret;
+  }
+
+  /**
+   * Grant permissions to consume messages from a queue
+   *
+   * This will grant the following permissions:
+   *
+   *   - sqs:ChangeMessageVisibility
+   *   - sqs:ChangeMessageVisibilityBatch
+   *   - sqs:DeleteMessage
+   *   - sqs:DeleteMessageBatch
+   *   - sqs:ReceiveMessage
+   *   - sqs:GetQueueAttributes
+   *   - sqs:GetQueueUrl
+   *
+   * @param grantee Principal to grant consume rights to
+   */
+  public grantConsume(grantee: iam.IGrantable) {
+    const ret = this.grant(grantee,
+      'sqs:ReceiveMessage',
+      'sqs:ChangeMessageVisibility',
+      'sqs:ChangeMessageVisibilityBatch',
+      'sqs:GetQueueUrl',
+      'sqs:DeleteMessage',
+      'sqs:DeleteMessageBatch',
       'sqs:GetQueueAttributes');
 
     if (this.encryptionMasterKey) {
@@ -198,10 +264,37 @@ export abstract class QueueBase extends Resource implements IQueue {
    *  - sqs:GetQueueUrl
    *
    * @param grantee Principal to grant send rights to
+   * @deprecated use {@link grantSend} instead
    */
   public grantSendMessages(grantee: iam.IGrantable) {
     const ret = this.grant(grantee,
       'sqs:SendMessage',
+      'sqs:GetQueueAttributes',
+      'sqs:GetQueueUrl');
+
+    if (this.encryptionMasterKey) {
+      // kms:Decrypt necessary to execute grantsendMessages to an SSE enabled SQS queue
+      this.encryptionMasterKey.grantEncryptDecrypt(grantee);
+    }
+    return ret;
+  }
+
+  /**
+   * Grant access to the given identity to send messages and batches of messages to this queue.
+   *
+   * This will grant the following permissions:
+   *
+   *  - sqs:SendMessage
+   *  - sqs:SendMessageBatch
+   *  - sqs:GetQueueAttributes
+   *  - sqs:GetQueueUrl
+   *
+   * @param grantee Principal to grant send rights to
+   */
+  public grantSend(grantee: iam.IGrantable) {
+    const ret = this.grant(grantee,
+      'sqs:SendMessage',
+      'sqs:SendMessageBatch',
       'sqs:GetQueueAttributes',
       'sqs:GetQueueUrl');
 
